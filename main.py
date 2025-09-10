@@ -1,33 +1,17 @@
-import asyncio
 import logging
 
-import mcp.server.stdio
-import mcp.types as types
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
+from app.tools.pod_tools import register_tools as register_pod_tools
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("kompass")
+server = FastMCP("kompass")
 
-class KompassServer(Server):
-    def create_initialization_options(self):
-        logger.info("✅ Kompass Server is ready and initialized")
-        return super().create_initialization_options()
-
-server = KompassServer("kompass")
-
-async def main():
-    logger.info("🚀 Starting Kompass Server")
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options()
-        )
+register_pod_tools(server)
         
 if __name__ == "__main__":
+    logging.info("🚀 Kompass Server started!")
     try:
-        asyncio.run(main())
+        server.run(transport="stdio")
     except KeyboardInterrupt:
-        logger.info("🛑 Kompass Server stopped")
+        logging.error("🛑 Kompass Server interrupted (KeyboardInterrupt)")
     except Exception as e:
-        logger.error(f"💥 Kompass Server crashed: {e}")
+        logging.error(f"💥 Kompass Server crashed: {e}")
