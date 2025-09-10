@@ -1,0 +1,1 @@
+You can launch the Python env using the following command: `source start-env.sh`
