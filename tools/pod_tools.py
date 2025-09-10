@@ -1,6 +1,6 @@
 from typing import List, Optional
 from mcp.server.fastmcp import FastMCP
-from app.client.kubernetes_client import get_kube_client
+from utils.kubernetes_client import get_kube_client
 
 def register_tools(server: FastMCP):
     @server.tool()

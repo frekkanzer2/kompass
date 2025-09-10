@@ -1,7 +1,7 @@
 import logging
 
 from mcp.server.fastmcp import FastMCP
-from app.tools.pod_tools import register_tools as register_pod_tools
+from tools.pod_tools import register_tools as register_pod_tools
 
 server = FastMCP("kompass")
 

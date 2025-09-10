@@ -1,0 +1,1 @@
+You can install all dev Python dependencies using the following command inside the `requirements/` folder: `pip install -r dev.txt`
