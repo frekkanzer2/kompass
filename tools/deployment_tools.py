@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional
 from mcp.server.fastmcp import FastMCP
-from utils.kubernetes_client import get_kube_client_apps
+from utils.kubernetes_client import get_kube_client_apps, get_kube_client
 from kubernetes.client import (
     V1Deployment,
     V1DeploymentSpec,
@@ -78,10 +78,10 @@ def register_deployment_tools(server: FastMCP):
                 "namespace": d.metadata.namespace,
                 "name": d.metadata.name,
                 "labels": d.metadata.labels,
-                "replicas": d.spec.replicas,
-                "available_replicas": d.status.available_replicas,
-                "ready_replicas": d.status.ready_replicas,
-                "updated_replicas": d.status.updated_replicas,
+                "replicas": d.spec.replicas or 0,
+                "available_replicas": d.status.available_replicas or 0,
+                "ready_replicas": d.status.ready_replicas or 0,
+                "updated_replicas": d.status.updated_replicas or 0,
                 "images": [c.image for c in d.spec.template.spec.containers],
                 "creation_timestamp": d.metadata.creation_timestamp.isoformat()
                 if d.metadata.creation_timestamp
@@ -127,3 +127,34 @@ def register_deployment_tools(server: FastMCP):
             "current_images": current_images,
             "history": history,
         }
+
+    @server.tool()
+    def get_deployment_events(namespace: str, name: str) -> List[Dict[str, object]]:
+        """
+        Get all events related to a specific Deployment.
+
+        Args:
+            namespace: namespace of the deployment
+            name: deployment name
+
+        Returns:
+            A list of events with type, reason, message, and timestamps.
+        """
+        client = get_kube_client()
+        events = client.list_namespaced_event(namespace=namespace).items
+
+        deployment_events = [
+            {
+                "type": ev.type,
+                "reason": ev.reason,
+                "message": ev.message,
+                "first_timestamp": ev.first_timestamp.isoformat() if ev.first_timestamp else None,
+                "last_timestamp": ev.last_timestamp.isoformat() if ev.last_timestamp else None,
+                "count": ev.count,
+            }
+            for ev in events
+            if ev.involved_object.kind == "Deployment" and ev.involved_object.name == name
+        ]
+        deployment_events.sort(key=lambda e: e["first_timestamp"] or "")
+
+        return deployment_events
