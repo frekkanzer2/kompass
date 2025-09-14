@@ -89,3 +89,41 @@ def register_deployment_tools(server: FastMCP):
             }
             for d in deployments
         ]
+
+    @server.tool()
+    def get_deployment_images_history(namespace: str, name: str) -> Dict[str, object]:
+        """
+        Get the current and historical images for a Deployment by inspecting its ReplicaSets.
+
+        Args:
+            namespace: namespace of the deployment
+            name: deployment name
+
+        Returns:
+            dict with current images and history of past images (from ReplicaSets)
+        """
+        kubeclient = get_kube_client_apps()
+        d = kubeclient.read_namespaced_deployment(name=name, namespace=namespace)
+        current_images = [c.image for c in d.spec.template.spec.containers]
+        rs_list = kubeclient.list_namespaced_replica_set(namespace=namespace).items
+        owned_rs = [
+            rs for rs in rs_list
+            if any(owner.kind == "Deployment" and owner.name == name
+                   for owner in (rs.metadata.owner_references or []))
+        ]
+        history: List[Dict[str, object]] = []
+        for rs in owned_rs:
+            imgs = [c.image for c in rs.spec.template.spec.containers]
+            history.append({
+                "replicaset": rs.metadata.name,
+                "images": imgs,
+                "creation_timestamp": rs.metadata.creation_timestamp.isoformat()
+                if rs.metadata.creation_timestamp else None,
+            })
+        history = sorted(history, key=lambda h: h["creation_timestamp"] or "")
+        return {
+            "deployment": name,
+            "namespace": namespace,
+            "current_images": current_images,
+            "history": history,
+        }
