@@ -28,3 +28,40 @@ def register_tools(server: FastMCP):
             }
             for ns in namespaces
         ]
+
+    @server.tool()
+    def delete_namespaces_by_substring(substring: str) -> List[Dict[str, object]]:
+        """
+        Delete all namespaces whose name contains the given substring.
+
+        Args:
+            substring: substring to match namespace name
+
+        Returns:
+            A list with the results of the deletion attempts.
+        """
+        kubeclient = get_kube_client()
+        namespaces = kubeclient.list_namespace().items
+
+        matched = [ns for ns in namespaces if substring in ns.metadata.name]
+        results = []
+
+        for ns in matched:
+            try:
+                kubeclient.delete_namespace(ns.metadata.name)
+                results.append(
+                    {
+                        "name": ns.metadata.name,
+                        "status": "Deleted",
+                    }
+                )
+            except ApiException as e:
+                results.append(
+                    {
+                        "name": ns.metadata.name,
+                        "status": f"Failed: {e.reason}",
+                        "details": e.body,
+                    }
+                )
+
+        return results
