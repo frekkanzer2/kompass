@@ -127,34 +127,3 @@ def register_deployment_tools(server: FastMCP):
             "current_images": current_images,
             "history": history,
         }
-
-    @server.tool()
-    def get_deployment_events(namespace: str, name: str) -> List[Dict[str, object]]:
-        """
-        Get all events related to a specific Deployment.
-
-        Args:
-            namespace: namespace of the deployment
-            name: deployment name
-
-        Returns:
-            A list of events with type, reason, message, and timestamps.
-        """
-        client = get_kube_client()
-        events = client.list_namespaced_event(namespace=namespace).items
-
-        deployment_events = [
-            {
-                "type": ev.type,
-                "reason": ev.reason,
-                "message": ev.message,
-                "first_timestamp": ev.first_timestamp.isoformat() if ev.first_timestamp else None,
-                "last_timestamp": ev.last_timestamp.isoformat() if ev.last_timestamp else None,
-                "count": ev.count,
-            }
-            for ev in events
-            if ev.involved_object.kind == "Deployment" and ev.involved_object.name == name
-        ]
-        deployment_events.sort(key=lambda e: e["first_timestamp"] or "")
-
-        return deployment_events

@@ -85,34 +85,3 @@ def register_tools(server: FastMCP):
             }
             for pod in pods
         ]
-
-    @server.tool()
-    def get_pod_events(namespace: str, name: str) -> List[dict[str, object]]:
-        """
-        Get all events related to a specific Pod.
-
-        Args:
-            namespace: namespace of the pod
-            name: pod name
-
-        Returns:
-            A list of events with type, reason, message, and timestamps.
-        """
-        kubeclient = get_kube_client()
-
-        events = kubeclient.list_namespaced_event(namespace=namespace).items
-
-        pod_events = [
-            {
-                "type": ev.type,
-                "reason": ev.reason,
-                "message": ev.message,
-                "first_timestamp": ev.first_timestamp.isoformat() if ev.first_timestamp else None,
-                "last_timestamp": ev.last_timestamp.isoformat() if ev.last_timestamp else None,
-                "count": ev.count,
-            }
-            for ev in events
-            if ev.involved_object.kind == "Pod" and ev.involved_object.name == name
-        ]
-
-        return pod_events
