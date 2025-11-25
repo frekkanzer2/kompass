@@ -85,3 +85,66 @@ def register_tools(server: FastMCP):
             }
             for pod in pods
         ]
+
+    @server.tool()
+    def cleanup_job_pods(
+        name: Optional[str] = None,
+        namespace: Optional[str] = None,
+        labels: Optional[dict[str, str]] = None,
+    ) -> List[dict[str, str]]:
+        """
+        Delete all pods created by Jobs that are in 'Succeeded' or 'Failed' state,
+        with optional filters on namespace, name, or labels.
+
+        Args:
+            name: substring to match in pod names
+            namespace: filter pods by namespace
+            labels: dictionary of labels to match (all must match)
+        
+        Returns:
+            A list of deleted pods (namespace and name)
+        """
+        kubeclient = get_kube_client()
+        
+        if namespace:
+            pods = kubeclient.list_namespaced_pod(namespace=namespace).items
+        else:
+            pods = kubeclient.list_pod_for_all_namespaces().items
+        
+        pods_to_delete = []
+        
+        for pod in pods:
+            owner_refs = pod.metadata.owner_references or []
+            is_job_pod = any(owner.kind == "Job" for owner in owner_refs)
+            
+            if not is_job_pod:
+                continue
+            
+            # Deve essere completato o in errore
+            if pod.status.phase not in ("Succeeded", "Failed"):
+                continue
+            
+            # Filtri opzionali
+            if name and name not in pod.metadata.name:
+                continue
+            
+            if labels:
+                pod_labels = pod.metadata.labels or {}
+                if not all(pod_labels.get(k) == v for k, v in labels.items()):
+                    continue
+            
+            pods_to_delete.append(pod)
+        
+        deleted_pods_info = []
+        for pod in pods_to_delete:
+            kubeclient.delete_namespaced_pod(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
+                body={}
+            )
+            deleted_pods_info.append({
+                "namespace": pod.metadata.namespace,
+                "name": pod.metadata.name
+            })
+        
+        return deleted_pods_info
