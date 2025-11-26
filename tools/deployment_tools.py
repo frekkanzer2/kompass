@@ -127,17 +127,21 @@ def register_deployment_tools(server: FastMCP):
             "current_images": current_images,
             "history": history,
         }
+    
     @server.tool()
     def rollout_restart_all_deployments(
         namespace: Optional[str] = None,
         label_selector: Optional[str] = None,
+        names: Optional[List[str]] = None,  # Nuovo parametro per i nomi
     ) -> List[dict[str, object]]:
         """
-        Restart all Kubernetes deployments in a namespace or across all namespaces.
+        Restart all Kubernetes deployments in a namespace or across all namespaces, 
+        anche filtrando per nome.
         
         Args:
             namespace: namespace to restart deployments in (if None, restarts in all namespaces)
             label_selector: optional label selector to filter deployments (e.g. "app=myapp")
+            names: optional list of Deployment names to restart (exact match)
             
         Returns:
             List of dictionaries with restart operation details for each deployment
@@ -156,6 +160,12 @@ def register_deployment_tools(server: FastMCP):
                     label_selector=label_selector
                 )
             
+            # Filtro opzionale ulteriormente per nome
+            items = [
+                deployment for deployment in deployments.items
+                if (not names or deployment.metadata.name in names)
+            ]
+            
             results = []
             from datetime import datetime
             restart_time = datetime.utcnow().isoformat()
@@ -171,7 +181,7 @@ def register_deployment_tools(server: FastMCP):
                 }
             }
             
-            for deployment in deployments.items:
+            for deployment in items:
                 try:
                     kubeclient.patch_namespaced_deployment(
                         name=deployment.metadata.name,
@@ -201,3 +211,50 @@ def register_deployment_tools(server: FastMCP):
                 "status": "error",
                 "error": f"Failed to list deployments: {str(e)}"
             }]
+
+    @server.tool()
+    def scale_deployment(
+        name: str,
+        namespace: str,
+        replicas: int
+    ) -> dict[str, object]:
+        """
+        Scale a Kubernetes Deployment to the specified number of replicas.
+
+        Args:
+            name: name of the deployment
+            namespace: namespace of the deployment
+            replicas: desired number of replicas
+
+        Returns:
+            Dictionary with operation result
+        """
+        try:
+            kubeclient = get_kube_client_apps()
+
+            patch_body = {
+                "spec": {
+                    "replicas": replicas
+                }
+            }
+
+            kubeclient.patch_namespaced_deployment(
+                name=name,
+                namespace=namespace,
+                body=patch_body
+            )
+
+            return {
+                "status": "success",
+                "deployment": name,
+                "namespace": namespace,
+                "scaled_to": replicas
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "deployment": name,
+                "namespace": namespace,
+                "error": str(e)
+            }
