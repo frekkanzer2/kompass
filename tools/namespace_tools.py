@@ -41,10 +41,11 @@ def register_tools(server: FastMCP):
         Returns:
             A list with the results of the deletion attempts.
         """
+        protected_namespaces = ["kube-system", "kube-public", "default"]
         kubeclient = get_kube_client()
         namespaces = kubeclient.list_namespace().items
 
-        matched = [ns for ns in namespaces if substring in ns.metadata.name]
+        matched = [ns for ns in namespaces if substring in ns.metadata.name and ns.metadata.name not in protected_namespaces]
         results = []
 
         for ns in matched:
