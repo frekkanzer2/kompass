@@ -159,7 +159,6 @@ def register_deployment_tools(server: FastMCP):
                     label_selector=label_selector
                 )
             
-            # Filtro opzionale ulteriormente per nome
             items = [
                 deployment for deployment in deployments.items
                 if (not names or deployment.metadata.name in names)

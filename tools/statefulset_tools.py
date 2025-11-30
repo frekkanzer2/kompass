@@ -44,7 +44,6 @@ def register_statefulset_tools(server: FastMCP):
                     label_selector=label_selector
                 )
             
-            # Filtro opzionale ulteriormente per nome
             items = [
                 ss for ss in statefulsets.items
                 if (not names or ss.metadata.name in names)
