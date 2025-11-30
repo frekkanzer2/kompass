@@ -1,4 +1,6 @@
 from utils.kubernetes_client import get_kube_client_apps
+from typing import List, Optional
+from mcp.server.fastmcp import FastMCP
 
 def register_statefulset_tools(server: FastMCP):
     @server.tool()
