@@ -137,14 +137,22 @@ def register_tools(server: FastMCP):
         
         deleted_pods_info = []
         for pod in pods_to_delete:
-            kubeclient.delete_namespaced_pod(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                body={}
-            )
-            deleted_pods_info.append({
-                "namespace": pod.metadata.namespace,
-                "name": pod.metadata.name
-            })
+            try:
+                kubeclient.delete_namespaced_pod(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                )
+                deleted_pods_info.append({
+                    "status": "deleted",
+                    "namespace": pod.metadata.namespace,
+                    "name": pod.metadata.name
+                })
+            except Exception as e:
+                deleted_pods_info.append({
+                    "status": "error",
+                    "namespace": pod.metadata.namespace,
+                    "name": pod.metadata.name,
+                    "error": str(e)
+                })
         
         return deleted_pods_info
