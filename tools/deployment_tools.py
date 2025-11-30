@@ -132,7 +132,7 @@ def register_deployment_tools(server: FastMCP):
     def rollout_restart_all_deployments(
         namespace: Optional[str] = None,
         label_selector: Optional[str] = None,
-        names: Optional[List[str]] = None,  # Nuovo parametro per i nomi
+        names: Optional[List[str]] = None,
     ) -> List[dict[str, object]]:
         """
         Restart all Kubernetes deployments in a namespace or across all namespaces, optionally filtered by label selector or specific names.
