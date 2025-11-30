@@ -1,6 +1,7 @@
 ![Kompass Logo](./media/kompass.png)
 # Kompass
-#### Manage your Kubernetes cluster with ease!
+*Manage your Kubernetes cluster with ease!*
+
 Kompass is an MCP server built to seamlessly connect with an AI model and deliver real-time, structured insights about the Kubernetes cluster under management. It is tailored for operators, SREs, and developers who primarily focus on monitoring, diagnostics, and small-scale adjustments within the cluster. Rather than attempting to automate or replace the human role, Kompass serves as a reliable companion: it enhances situational awareness, streamlines communication with the cluster, and produces consistent, well-structured reports. By acting as an intelligent assistant, Kompass helps users make informed decisions more quickly, reducing cognitive load while preserving full human oversight and control.
 
 ## Setup
