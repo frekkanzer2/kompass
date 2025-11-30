@@ -120,11 +120,9 @@ def register_tools(server: FastMCP):
             if not is_job_pod:
                 continue
             
-            # Deve essere completato o in errore
             if pod.status.phase not in ("Succeeded", "Failed"):
                 continue
             
-            # Filtri opzionali
             if name and name not in pod.metadata.name:
                 continue
             
