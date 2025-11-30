@@ -1,15 +1,4 @@
-from typing import List, Dict, Optional
-from mcp.server.fastmcp import FastMCP
-from utils.kubernetes_client import get_kube_client_apps, get_kube_client
-from kubernetes.client import (
-    V1Deployment,
-    V1DeploymentSpec,
-    V1ObjectMeta,
-    V1PodTemplateSpec,
-    V1PodSpec,
-    V1Container,
-    V1LabelSelector,
-)
+from utils.kubernetes_client import get_kube_client_apps
 
 def register_statefulset_tools(server: FastMCP):
     @server.tool()
