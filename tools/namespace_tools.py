@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict
 from mcp.server.fastmcp import FastMCP
 from utils.kubernetes_client import get_kube_client
+from kubernetes.client.exceptions import ApiException
 
 def register_tools(server: FastMCP):
     @server.tool()
