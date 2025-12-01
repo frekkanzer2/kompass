@@ -36,7 +36,7 @@ def register_event_tools(server: FastMCP):
 
             return resource_events
         except Exception as e:
-        return [{
-            "status": "error",
-            "error": f"Failed to get events for {kind}/{name} in namespace {namespace}: {str(e)}"
-        }]
+            return [{
+                "status": "error",
+                "error": f"Failed to get events for {kind}/{name} in namespace {namespace}: {str(e)}"
+            }]
