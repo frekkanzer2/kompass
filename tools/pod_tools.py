@@ -45,70 +45,76 @@ def register_tools(server: FastMCP):
             labels: dict of labels to match (all must match)
             image: substring to match container image
         """
-        kubeclient = get_kube_client()
+        try:
+            kubeclient = get_kube_client()
 
-        if namespace:
-            pods = kubeclient.list_namespaced_pod(namespace=namespace)
-        else:
-            pods = kubeclient.list_pod_for_all_namespaces()
+            if namespace:
+                pods = kubeclient.list_namespaced_pod(namespace=namespace)
+            else:
+                pods = kubeclient.list_pod_for_all_namespaces()
 
-        pods = pods.items
+            pods = pods.items
 
-        if name:
-            pods = [pod for pod in pods if name in pod.metadata.name]
+            if name:
+                pods = [pod for pod in pods if name in pod.metadata.name]
 
-        if labels:
-            def match_labels(pod):
-                pod_labels = pod.metadata.labels or {}
-                return all(pod_labels.get(k) == v for k, v in labels.items())
-            pods = [pod for pod in pods if match_labels(pod)]
+            if labels:
+                def match_labels(pod):
+                    pod_labels = pod.metadata.labels or {}
+                    return all(pod_labels.get(k) == v for k, v in labels.items())
+                pods = [pod for pod in pods if match_labels(pod)]
 
-        if status:
-            def pod_matches_status(pod):
-                if pod.status.container_statuses:
-                    for cs in pod.status.container_statuses:
-                        if cs.state.waiting and cs.state.waiting.reason == status:
-                            return True
-                        if cs.state.terminated and cs.state.terminated.reason == status:
-                            return True
-                return pod.status.phase == status
-            pods = [pod for pod in pods if pod_matches_status(pod)]
+            if status:
+                def pod_matches_status(pod):
+                    if pod.status.container_statuses:
+                        for cs in pod.status.container_statuses:
+                            if cs.state.waiting and cs.state.waiting.reason == status:
+                                return True
+                            if cs.state.terminated and cs.state.terminated.reason == status:
+                                return True
+                    return pod.status.phase == status
+                pods = [pod for pod in pods if pod_matches_status(pod)]
 
-        if image:
-            pods = [
-                pod for pod in pods
-                if any(image in c.image for c in (pod.spec.containers or []))
-            ]
+            if image:
+                pods = [
+                    pod for pod in pods
+                    if any(image in c.image for c in (pod.spec.containers or []))
+                ]
 
-        return [
-            {
-                "namespace": pod.metadata.namespace,
-                "name": pod.metadata.name,
-                "phase": pod.status.phase,
-                "reason": next(
-                    (
-                        cs.state.waiting.reason
-                        for cs in (pod.status.container_statuses or [])
-                        if cs.state.waiting
+            return [
+                {
+                    "namespace": pod.metadata.namespace,
+                    "name": pod.metadata.name,
+                    "phase": pod.status.phase,
+                    "reason": next(
+                        (
+                            cs.state.waiting.reason
+                            for cs in (pod.status.container_statuses or [])
+                            if cs.state.waiting
+                        ),
+                        None,
                     ),
-                    None,
-                ),
-                "restarts": sum(cs.restart_count for cs in (pod.status.container_statuses or [])),
-                "containers": [cs.name for cs in (pod.status.container_statuses or [])],
-                "images": [c.image for c in (pod.spec.containers or [])],
-                "resources": [
-                    {
-                        "container": c.name,
-                        "requests": c.resources.requests if c.resources else {},
-                        "limits": c.resources.limits if c.resources else {},
-                    }
-                    for c in (pod.spec.containers or [])
-                ],
-                "node": pod.spec.node_name,
-                "labels": pod.metadata.labels,
-            }
-            for pod in pods
-        ]
+                    "restarts": sum(cs.restart_count for cs in (pod.status.container_statuses or [])),
+                    "containers": [cs.name for cs in (pod.status.container_statuses or [])],
+                    "images": [c.image for c in (pod.spec.containers or [])],
+                    "resources": [
+                        {
+                            "container": c.name,
+                            "requests": c.resources.requests if c.resources else {},
+                            "limits": c.resources.limits if c.resources else {},
+                        }
+                        for c in (pod.spec.containers or [])
+                    ],
+                    "node": pod.spec.node_name,
+                    "labels": pod.metadata.labels,
+                }
+                for pod in pods
+            ]
+        except Exception as e:
+            return [{
+                "status": "error",
+                "error": f"Failed to list pods: {str(e)}"
+            }]
 
     @server.tool()
     def cleanup_job_pods(
