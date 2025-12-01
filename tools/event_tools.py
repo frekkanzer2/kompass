@@ -3,6 +3,26 @@ from mcp.server.fastmcp import FastMCP
 from utils.kubernetes_client import get_kube_client
 
 def register_event_tools(server: FastMCP):
+    """
+    Retrieve Kubernetes events for the specified resource.
+    
+    Parameters:
+        kind (str): Resource kind (e.g., Pod, Job, Deployment).
+        namespace (str): Namespace of the resource.
+        name (str): Name of the resource.
+    
+    Returns:
+        List[Dict[str, object]]: A list of event dictionaries, each containing:
+            - `type`: event type (e.g., Normal, Warning)
+            - `reason`: short reason string
+            - `message`: human-readable message
+            - `first_timestamp`: ISO 8601 timestamp string of first occurrence, or None
+            - `last_timestamp`: ISO 8601 timestamp string of last occurrence, or None
+            - `count`: number of times the event occurred
+        If an error occurs while fetching events, returns a single-element list with a dictionary:
+            - `status`: "error"
+            - `error`: descriptive error message
+    """
     @server.tool()
     def get_resource_events(kind: str, namespace: str, name: str) -> List[Dict[str, object]]:
         """

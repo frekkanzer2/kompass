@@ -3,6 +3,30 @@ from mcp.server.fastmcp import FastMCP
 from utils.kubernetes_client import get_kube_client
 
 def register_tools(server: FastMCP):
+    """
+    Retrieve pod metadata, optionally filtering by namespace, pod name substring, pod status, labels, or container image substring.
+    
+    Parameters:
+        name (Optional[str]): Substring to match against pod metadata.name.
+        namespace (Optional[str]): Namespace to scope the pod listing; when omitted, searches all namespaces.
+        status (Optional[str]): Pod phase or container state reason to match (e.g., 'Running', 'Pending', 'CrashLoopBackOff').
+        labels (Optional[dict[str, str]]): Key/value pairs that must all be present on the pod.
+        image (Optional[str]): Substring to match against container image names.
+    
+    Returns:
+        List[dict[str, object]]: A list of pod summaries containing keys: `namespace`, `name`, `phase`, `reason`, `restarts`, `containers`, `images`, `resources`, `node`, and `labels`.
+    """
+    """
+    Delete pods owned by Kubernetes Jobs that are in the 'Succeeded' or 'Failed' phase, with optional filtering by namespace, name substring, or labels.
+    
+    Parameters:
+        name (Optional[str]): Substring to match against pod metadata.name.
+        namespace (Optional[str]): Namespace to scope the pod listing and deletions; when omitted, operates across all namespaces.
+        labels (Optional[dict[str, str]]): Key/value pairs that must all be present on the pod.
+    
+    Returns:
+        List[dict[str, str]]: A list of result objects for attempted deletions. Each object contains `status` ('deleted' or 'error'), `namespace`, and `name`; error entries include an `error` message.
+    """
     @server.tool()
     def list_pods(
         name: Optional[str] = None,
@@ -93,16 +117,19 @@ def register_tools(server: FastMCP):
         labels: Optional[dict[str, str]] = None,
     ) -> List[dict[str, str]]:
         """
-        Delete all pods created by Jobs that are in 'Succeeded' or 'Failed' state,
-        with optional filters on namespace, name, or labels.
-
-        Args:
-            name: substring to match in pod names
-            namespace: filter pods by namespace
-            labels: dictionary of labels to match (all must match)
+        Delete pods created by Kubernetes Jobs that are in the "Succeeded" or "Failed" phase, optionally filtering by namespace, name substring, and labels.
+        
+        Parameters:
+            name (Optional[str]): Substring to match within pod names.
+            namespace (Optional[str]): Namespace to restrict the search to; if omitted, all namespaces are searched.
+            labels (Optional[dict[str, str]]): Labels that must all match on a pod (every key/value pair must be present and equal).
         
         Returns:
-            A list of deleted pods (namespace and name)
+            List[dict[str, str]]: A list of result records for each attempted deletion. Each record contains:
+                - "status": "deleted" for successful deletions or "error" if deletion failed.
+                - "namespace": namespace of the pod.
+                - "name": name of the pod.
+                - "error" (present only when status is "error"): the error message describing the failure.
         """
         kubeclient = get_kube_client()
         

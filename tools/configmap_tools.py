@@ -4,6 +4,21 @@ from utils.kubernetes_client import get_kube_client
 from kubernetes.client import V1ConfigMap, V1ObjectMeta
 
 def register_configmap_tools(server: FastMCP):
+    """
+    Retrieve metadata and data for Kubernetes ConfigMaps, optionally filtered by namespace and name substring.
+    
+    Parameters:
+    	namespace (Optional[str]): If provided, only ConfigMaps in this namespace are returned.
+    	name (Optional[str]): If provided, only ConfigMaps whose metadata.name contains this substring are returned.
+    
+    Returns:
+    	List[Dict[str, object]]: A list of dictionaries representing ConfigMaps with the following keys:
+    		- "namespace": namespace of the ConfigMap (str or None)
+    		- "name": name of the ConfigMap (str)
+    		- "labels": metadata labels (dict or None)
+    		- "data": key/value data from the ConfigMap (dict; empty dict if none)
+    		- "creation_timestamp": ISO 8601 timestamp string of creation time, or None
+    """
     @server.tool()
     def list_configmaps(
         namespace: Optional[str] = None,
