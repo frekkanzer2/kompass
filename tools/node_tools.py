@@ -3,6 +3,18 @@ from mcp.server.fastmcp import FastMCP
 from utils.kubernetes_client import get_kube_client
 
 def register_node_tools(server: FastMCP):
+  """
+  Collects kubelet version, OS image, and container runtime information for each node in the Kubernetes cluster.
+  
+  Returns:
+      A list of dictionaries, one per node, with keys:
+        - `node`: node name
+        - `kubelet_version`: kubelet version string
+        - `os_image`: operating system image string
+        - `container_runtime`: container runtime version string
+  
+      On failure, returns a single-item list: `[{ "status": "error", "error": "<message>" }]`.
+  """
   @server.tool()
   def list_cluster_node_versions() -> List[dict[str, object]]:
     """

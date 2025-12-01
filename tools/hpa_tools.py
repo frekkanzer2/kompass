@@ -3,6 +3,39 @@ from mcp.server.fastmcp import FastMCP
 from utils.kubernetes_client import get_kube_client_scaling
 
 def register_hpa_tools(server: FastMCP):
+    """
+    Retrieve a list of HorizontalPodAutoscalers (HPAs) optionally filtered by namespace, name, replica bounds, target/current CPU or memory utilization, or target reference.
+    
+    Parameters:
+        namespace (Optional[str]): Kubernetes namespace to scope the search; if omitted, all namespaces are searched.
+        name (Optional[str]): Substring matched against "namespace/name" to filter HPAs.
+        min_replicas (Optional[int]): Minimum allowed configured replicas (filters out HPAs whose configured minReplicas is less than this).
+        max_replicas (Optional[int]): Maximum allowed configured replicas (filters out HPAs whose configured maxReplicas is greater than this).
+        target_cpu_utilization_pct (Optional[int]): Minimum required configured target average CPU utilization percentage on the HPA.
+        target_memory_utilization_pct (Optional[int]): Minimum required configured target average memory utilization percentage on the HPA.
+        current_cpu_utilization_pct_min (Optional[int]): Minimum required observed current average CPU utilization percentage.
+        current_memory_utilization_pct_min (Optional[int]): Minimum required observed current average memory utilization percentage.
+        target_kind (Optional[str]): Required kind of the HPA's scale target (e.g., "Deployment").
+        target_name (Optional[str]): Substring matched against the scale target's name.
+    
+    Returns:
+        List[Dict[str, object]]: A list of summary dictionaries for matching HPAs. Each dictionary contains the keys:
+            "namespace", "name", "target" (formatted "Kind/Name"), "min_replicas", "max_replicas",
+            "current_replicas", and "desired_replicas".
+    """
+    """
+    Return the scaling criteria and observed utilization for a specific HorizontalPodAutoscaler (HPA).
+    
+    Parameters:
+        namespace (str): Namespace of the HPA.
+        name (str): Name of the HPA.
+    
+    Returns:
+        Dict[str, object]: A dictionary with the HPA's namespace and name and the following fields:
+            "cpu": {"target_utilization_pct": int | None, "current_utilization_pct": int | None},
+            "memory": {"target_utilization_pct": int | None, "current_utilization_pct": int | None},
+            "current_replicas": int.
+    """
     @server.tool()
     def list_hpa(
         namespace: Optional[str] = None,
@@ -87,7 +120,23 @@ def register_hpa_tools(server: FastMCP):
     @server.tool()
     def get_hpa_scaling_criteria(namespace: str, name: str) -> Dict[str, object]:
         """
-        Get only the scaling criteria of a HorizontalPodAutoscaler (HPA).
+        Retrieve scaling criteria for a specific HorizontalPodAutoscaler (HPA).
+        
+        Returns:
+        	A dictionary with the HPA's namespace and name, CPU and memory scaling targets and current utilizations, and current replica count. Example structure:
+        	{
+        		"namespace": str,
+        		"name": str,
+        		"cpu": {
+        			"target_utilization_pct": Optional[int],
+        			"current_utilization_pct": Optional[int],
+        		},
+        		"memory": {
+        			"target_utilization_pct": Optional[int],
+        			"current_utilization_pct": Optional[int],
+        		},
+        		"current_replicas": int,
+        	}
         """
         client = get_kube_client_scaling()
         h = client.read_namespaced_horizontal_pod_autoscaler(name=name, namespace=namespace)

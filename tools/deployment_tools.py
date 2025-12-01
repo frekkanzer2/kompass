@@ -12,6 +12,76 @@ from kubernetes.client import (
 )
 
 def register_deployment_tools(server: FastMCP):
+    """
+    Return deployments matching optional filters such as namespace, name substring, labels, replica counts, readiness counts, or container image substring.
+    
+    Parameters:
+        namespace (Optional[str]): Namespace to search; if omitted searches all namespaces.
+        name (Optional[str]): Substring to match against deployment names.
+        labels (Optional[Dict[str, str]]): Required key/value pairs that must be present on the deployment.
+        min_replicas (Optional[int]): Minimum desired replicas (inclusive).
+        max_replicas (Optional[int]): Maximum desired replicas (inclusive).
+        min_ready_replicas (Optional[int]): Minimum ready replicas (inclusive).
+        max_ready_replicas (Optional[int]): Maximum ready replicas (inclusive).
+        ready_replicas (Optional[int]): Exact ready replicas value to match.
+        image (Optional[str]): Substring to match against container image names.
+    
+    Returns:
+        List[Dict[str, object]]: One entry per matching deployment with keys:
+            - namespace: deployment namespace
+            - name: deployment name
+            - labels: deployment labels (or None)
+            - replicas: desired replica count (int)
+            - available_replicas: available replicas count (int)
+            - ready_replicas: ready replicas count (int)
+            - updated_replicas: updated replicas count (int)
+            - images: list of container image strings
+            - creation_timestamp: ISO 8601 timestamp string or None
+    """
+    """
+    Return the current container images for a Deployment and a chronological history derived from its owned ReplicaSets.
+    
+    Parameters:
+        namespace (str): Namespace of the Deployment.
+        name (str): Name of the Deployment.
+    
+    Returns:
+        Dict[str, object]: Dictionary containing:
+            - deployment: the Deployment name
+            - namespace: the Deployment namespace
+            - current_images: list of images from the Deployment pod template
+            - history: list of dicts with keys:
+                - replicaset: replicaset name
+                - images: list of images from that replicaset
+                - creation_timestamp: ISO 8601 timestamp string or None
+    """
+    """
+    Trigger a rollout restart by annotating matching Deployments' pod templates and report per-deployment outcomes.
+    
+    Parameters:
+        namespace (Optional[str]): Namespace to target; if omitted targets all namespaces.
+        label_selector (Optional[str]): Kubernetes label selector to pre-filter deployments.
+        names (Optional[List[str]]): Optional exact list of deployment names to include.
+    
+    Returns:
+        List[dict[str, object]]: One result per attempted deployment with either:
+            - success entries containing status="success", deployment, namespace, restarted_at (ISO timestamp)
+            - error entries containing status="error", deployment, namespace, error (error message)
+        If listing deployments fails, returns a single-item list with status="error" and an error message.
+    """
+    """
+    Scale the specified Deployment to the requested replica count and return the operation result.
+    
+    Parameters:
+        name (str): Name of the Deployment to scale.
+        namespace (str): Namespace of the Deployment.
+        replicas (int): Desired number of replicas.
+    
+    Returns:
+        dict[str, object]: Result dictionary with either:
+            - on success: status="success", deployment, namespace, scaled_to (int)
+            - on error: status="error", deployment, namespace, error (error message)
+    """
     @server.tool()
     def list_deployments(
         namespace: Optional[str] = None,
@@ -93,14 +163,19 @@ def register_deployment_tools(server: FastMCP):
     @server.tool()
     def get_deployment_images_history(namespace: str, name: str) -> Dict[str, object]:
         """
-        Get the current and historical images for a Deployment by inspecting its ReplicaSets.
-
-        Args:
-            namespace: namespace of the deployment
-            name: deployment name
-
+        Retrieve current and historical container images for a Deployment by inspecting its ReplicaSets.
+        
+        History entries are ordered by ReplicaSet creation time (oldest first).
+        
         Returns:
-            dict with current images and history of past images (from ReplicaSets)
+            result (dict): Mapping with keys:
+                - "deployment" (str): the Deployment name.
+                - "namespace" (str): the Deployment namespace.
+                - "current_images" (List[str]): images from the Deployment's pod template containers.
+                - "history" (List[dict]): list of records for owned ReplicaSets, each containing:
+                    - "replicaset" (str): ReplicaSet name.
+                    - "images" (List[str]): images from the ReplicaSet's pod template containers.
+                    - "creation_timestamp" (str|None): ISO-formatted creation timestamp or None.
         """
         kubeclient = get_kube_client_apps()
         d = kubeclient.read_namespaced_deployment(name=name, namespace=namespace)
@@ -135,15 +210,17 @@ def register_deployment_tools(server: FastMCP):
         names: Optional[List[str]] = None,
     ) -> List[dict[str, object]]:
         """
-        Restart all Kubernetes deployments in a namespace or across all namespaces, optionally filtered by label selector or specific names.
+        Trigger a rollout restart for matching Deployments by updating their pod template annotation.
         
-        Args:
-            namespace: namespace to restart deployments in (if None, restarts in all namespaces)
-            label_selector: optional label selector to filter deployments (e.g. "app=myapp")
-            names: optional list of Deployment names to restart (exact match)
-            
+        Updates the pod template annotation (kubectl.kubernetes.io/restartedAt) to force a restart for Deployments selected by namespace, label_selector, and/or an explicit list of names. Each item in the returned list describes the outcome for a Deployment; if listing deployments fails a single-item list with an error entry is returned.
+        
+        Parameters:
+            namespace (Optional[str]): Namespace to target; if None, all namespaces are considered.
+            label_selector (Optional[str]): Kubernetes label selector string to filter Deployments (e.g. "app=myapp").
+            names (Optional[List[str]]): Optional list of exact Deployment names to restart; when provided only Deployments with names in this list are affected.
+        
         Returns:
-            List of dictionaries with restart operation details for each deployment
+            List[dict[str, object]]: Per-deployment result dictionaries. Each success entry contains "status": "success", "deployment", "namespace", and "restarted_at". Each failure entry contains "status": "error", "deployment", "namespace", and "error". On top-level listing failure returns [{"status": "error", "error": "<message>"}].
         """
         try:
             kubeclient = get_kube_client_apps()
@@ -217,15 +294,10 @@ def register_deployment_tools(server: FastMCP):
         replicas: int
     ) -> dict[str, object]:
         """
-        Scale a Kubernetes Deployment to the specified number of replicas.
-
-        Args:
-            name: name of the deployment
-            namespace: namespace of the deployment
-            replicas: desired number of replicas
-
+        Scale the specified Kubernetes Deployment to the given replica count.
+        
         Returns:
-            Dictionary with operation result
+            A dictionary describing the operation result. On success: `{"status": "success", "deployment": <name>, "namespace": <namespace>, "scaled_to": <replicas>}`. On error: `{"status": "error", "deployment": <name>, "namespace": <namespace>, "error": <error message>}`.
         """
         try:
             kubeclient = get_kube_client_apps()

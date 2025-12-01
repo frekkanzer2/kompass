@@ -3,6 +3,29 @@ from typing import List, Optional
 from mcp.server.fastmcp import FastMCP
 
 def register_statefulset_tools(server: FastMCP):
+    """
+    Restart Kubernetes StatefulSets by updating the pod template annotation `kubectl.kubernetes.io/restartedAt` to trigger a rolling restart.
+    
+    Parameters:
+        namespace (Optional[str]): Namespace to target; if None, operate across all namespaces.
+        label_selector (Optional[str]): Label selector to filter StatefulSets (e.g. "app=myapp").
+        names (Optional[List[str]]): Exact StatefulSet names to limit the restart to.
+    
+    Returns:
+        List[dict]: A list of result objects for each processed StatefulSet. On success objects contain:
+            - "status": "success"
+            - "statefulset": the StatefulSet name
+            - "namespace": the StatefulSet namespace
+            - "restarted_at": ISO8601 UTC timestamp used for the restart annotation
+        On per-item failure objects contain:
+            - "status": "error"
+            - "statefulset": the StatefulSet name
+            - "namespace": the StatefulSet namespace
+            - "error": error message string
+        If listing StatefulSets fails, returns a single-item list with:
+            - "status": "error"
+            - "error": error message string
+    """
     @server.tool()
     def rollout_restart_all_statefulsets(
         namespace: Optional[str] = None,
@@ -85,4 +108,3 @@ def register_statefulset_tools(server: FastMCP):
                 "status": "error",
                 "error": f"Failed to list StatefulSets: {str(e)}"
             }]
-

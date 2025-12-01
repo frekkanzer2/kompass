@@ -3,6 +3,27 @@ from mcp.server.fastmcp import FastMCP
 from utils.kubernetes_client import get_kube_client_batch, get_kube_client
 
 def register_job_tools(server: FastMCP):
+    """
+    List Kubernetes Jobs optionally filtered by namespace, name substring, or exact labels.
+    
+    Parameters:
+        namespace (Optional[str]): Namespace to search for Jobs. If None, search all namespaces.
+        name (Optional[str]): Substring to match against Job metadata.name.
+        labels (Optional[Dict[str, str]]): Exact key/value labels all of which must be present on a Job.
+    
+    Returns:
+        List[Dict[str, object]]: A list of dictionaries, one per Job, containing:
+            - namespace: Job namespace (str)
+            - name: Job name (str)
+            - labels: Job labels (dict or None)
+            - completions: desired completions (int or None)
+            - parallelism: configured parallelism (int or None)
+            - succeeded: number of succeeded pods (int)
+            - active: number of active pods (int)
+            - failed: number of failed pods (int)
+            - start_time: ISO 8601 timestamp string of job start or None
+            - completion_time: ISO 8601 timestamp string of job completion or None
+    """
     @server.tool()
     def list_jobs(
         namespace: Optional[str] = None,
