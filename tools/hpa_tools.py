@@ -120,23 +120,9 @@ def register_hpa_tools(server: FastMCP):
     @server.tool()
     def get_hpa_scaling_criteria(namespace: str, name: str) -> Dict[str, object]:
         """
-        Retrieve scaling criteria for a specific HorizontalPodAutoscaler (HPA).
-        
-        Returns:
-        	A dictionary with the HPA's namespace and name, CPU and memory scaling targets and current utilizations, and current replica count. Example structure:
-        	{
-        		"namespace": str,
-        		"name": str,
-        		"cpu": {
-        			"target_utilization_pct": Optional[int],
-        			"current_utilization_pct": Optional[int],
-        		},
-        		"memory": {
-        			"target_utilization_pct": Optional[int],
-        			"current_utilization_pct": Optional[int],
-        		},
-        		"current_replicas": int,
-        	}
+        Retrieve detailed scaling criteria for a specific HorizontalPodAutoscaler (HPA),
+        including targets, behaviors, stabilization windows, scaling policies,
+        conditions and replica boundaries.
         """
         client = get_kube_client_scaling()
         h = client.read_namespaced_horizontal_pod_autoscaler(name=name, namespace=namespace)
@@ -144,6 +130,7 @@ def register_hpa_tools(server: FastMCP):
         spec = h.spec
         status = h.status
 
+        # Extract metric targets (CPU, memory)
         cpu_target = None
         mem_target = None
         for m in spec.metrics or []:
@@ -153,6 +140,7 @@ def register_hpa_tools(server: FastMCP):
                 elif m.resource.name == "memory":
                     mem_target = getattr(m.resource.target, "average_utilization", None)
 
+        # Extract current metrics
         cpu_current = None
         mem_current = None
         for cm in status.current_metrics or []:
@@ -162,16 +150,62 @@ def register_hpa_tools(server: FastMCP):
                 elif cm.resource.name == "memory":
                     mem_current = getattr(cm.resource.current, "average_utilization", None)
 
+        # Extract scaling behavior (autoscaling/v2)
+        behavior = spec.behavior or {}
+        scale_up = getattr(behavior, "scale_up", None)
+        scale_down = getattr(behavior, "scale_down", None)
+
+        def extract_behavior_rules(rule):
+            if not rule:
+                return None
+            return {
+                "stabilization_window_seconds": getattr(rule, "stabilization_window_seconds", None),
+                "select_policy": getattr(rule, "select_policy", None),
+                "policies": [
+                    {
+                        "type": p.type,
+                        "value": p.value,
+                        "period_seconds": p.period_seconds,
+                    }
+                    for p in getattr(rule, "policies", []) or []
+                ],
+            }
+
+        scale_up_rules = extract_behavior_rules(scale_up)
+        scale_down_rules = extract_behavior_rules(scale_down)
+
+        # Extract HPA conditions
+        conditions = []
+        for c in status.conditions or []:
+            conditions.append({
+                "type": c.type,
+                "status": c.status,
+                "reason": c.reason,
+                "message": c.message,
+                "last_transition_time": str(c.last_transition_time),
+            })
+
         return {
             "namespace": h.metadata.namespace,
             "name": h.metadata.name,
-            "cpu": {
-                "target_utilization_pct": cpu_target,
-                "current_utilization_pct": cpu_current,
-            },
-            "memory": {
-                "target_utilization_pct": mem_target,
-                "current_utilization_pct": mem_current,
-            },
+            "min_replicas": spec.min_replicas,
+            "max_replicas": spec.max_replicas,
             "current_replicas": status.current_replicas or 0,
+            "desired_replicas": status.desired_replicas or None,
+            "last_scale_time": str(status.last_scale_time) if status.last_scale_time else None,
+            "metrics": {
+                "cpu": {
+                    "target_utilization_pct": cpu_target,
+                    "current_utilization_pct": cpu_current,
+                },
+                "memory": {
+                    "target_utilization_pct": mem_target,
+                    "current_utilization_pct": mem_current,
+                },
+            },
+            "behavior": {
+                "scale_up": scale_up_rules,
+                "scale_down": scale_down_rules,
+            },
+            "conditions": conditions,
         }
